@@ -1,0 +1,6 @@
+{
+  "name": "dash_script",
+  "description": "A premium, futuristic crash game predictor app with modern animated interfaces and Realtime Database compatibility.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
