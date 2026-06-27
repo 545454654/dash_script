@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="ar" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>dash_script - لوحة إدارة الأكواد</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              cyan: {
+                DEFAULT: '#00f7ff',
+                50: '#e6feff',
+                100: '#ccfdff',
+                200: '#99faff',
+                300: '#66f8ff',
+                400: '#33f5ff',
+                500: '#00f7ff',
+                600: '#00c5cc',
+                700: '#009499',
+                800: '#006366',
+                900: '#003133',
+              }
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
+      
+      body {
+        font-family: 'Cairo', sans-serif;
+      }
+      .font-mono {
+        font-family: 'JetBrains Mono', monospace;
+      }
+      /* Custom glowing scrollbar */
+      ::-webkit-scrollbar {
+        width: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #000c14;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: rgba(0, 247, 255, 0.3);
+        border-radius: 10px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: rgba(0, 247, 255, 0.6);
+      }
+    </style>
+    
+    <!-- Firebase SDK Compat version -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+  </head>
+  <body class="relative min-h-screen w-full bg-[#010409] text-white flex flex-col justify-center items-center overflow-x-hidden selection:bg-cyan/20 selection:text-cyan p-4">
+    
+    <!-- Decorative Ambient Glow Background -->
+    <div class="fixed inset-0 pointer-events-none overflow-hidden z-0">
+      <div class="absolute -top-40 -left-40 w-96 h-96 rounded-full bg-cyan/10 blur-[120px]"></div>
+      <div class="absolute -bottom-40 -right-40 w-96 h-96 rounded-full bg-cyan/10 blur-[120px]"></div>
+      <!-- Grid Overlay -->
+      <div class="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+    </div>
+
+    <!-- MAIN APP WRAPPER -->
+    <div class="w-full max-w-[440px] z-10 relative">
+      
+      <!-- AUTHENTICATION DIALOG (Shown by default) -->
+      <div id="authCard" class="bg-[#001018]/95 border-2 border-cyan p-8 rounded-3xl w-full text-right shadow-[0_0_40px_rgba(0,247,255,0.2)] backdrop-blur-md transition-all duration-300 transform scale-100">
+        <div class="flex justify-center mb-6">
+          <div class="p-4 bg-[#001f2b] rounded-full border border-cyan/40 shadow-[0_0_15px_rgba(0,247,255,0.3)]">
+            <!-- Shield Lock Icon -->
+            <svg class="w-10 h-10 text-cyan animate-pulse" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+          </div>
+        </div>
+
+        <h2 class="text-2xl font-black text-cyan mb-2 text-center select-none uppercase tracking-wide">
+          dash_script
+        </h2>
+        <h3 class="text-md font-bold text-white/80 mb-6 text-center select-none">
+          لوحة إدارة الأكواد والروابط
+        </h3>
+
+        <div class="relative mb-4">
+          <span class="absolute right-4 top-1/2 -translate-y-1/2 text-cyan/50">
+            <!-- Key Icon -->
+            <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+            </svg>
+          </span>
+          <input
+            id="passwordInput"
+            type="password"
+            placeholder="أدخل كلمة مرور المسؤول"
+            class="w-full pr-11 pl-4 py-3.5 rounded-xl border border-cyan/30 bg-black/60 text-cyan placeholder-cyan/40 outline-none font-bold text-center focus:border-cyan transition-all"
+            onkeydown="if(event.key === 'Enter') attemptLogin()"
+          />
+        </div>
+
+        <p id="authError" class="hidden text-red-500 text-xs font-black text-center mb-4 bg-red-500/10 py-2.5 rounded-lg border border-red-500/20">
+          ⚠️ كلمة مرور الإدارة غير صحيحة!
+        </p>
+
+        <button
+          onclick="attemptLogin()"
+          class="w-full py-3.5 bg-cyan text-black font-black rounded-xl hover:bg-white transition-all cursor-pointer shadow-[0_0_15px_rgba(0,247,255,0.3)] hover:scale-[1.02] active:scale-95 text-center flex items-center justify-center gap-2"
+        >
+          <span>تسجيل الدخول 🔐</span>
+        </button>
+      </div>
+
+      <!-- MAIN PANEL DIALOG (Hidden by default) -->
+      <div id="panelCard" class="hidden bg-[#001018]/95 border-2 border-cyan p-6 rounded-3xl w-full text-right shadow-[0_0_40px_rgba(0,247,255,0.3)] backdrop-blur-md transition-all duration-300">
+        
+        <!-- Header with logo & logout -->
+        <div class="flex justify-between items-center mb-6 border-b border-cyan/20 pb-4">
+          <div class="flex items-center gap-2">
+            <!-- Settings Spinner Icon -->
+            <svg class="w-6 h-6 text-cyan animate-[spin_10s_linear_infinite]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <h2 class="text-xl font-black text-cyan uppercase tracking-wide">
+              dash_script الإدارة
+            </h2>
+          </div>
+          
+          <button
+            onclick="logout()"
+            class="px-3 py-1.5 bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white rounded-xl transition-all cursor-pointer flex items-center gap-1.5 text-xs font-black border border-red-500/30"
+          >
+            <!-- LogOut Icon -->
+            <svg class="w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            <span>خروج</span>
+          </button>
+        </div>
+
+        <!-- TAB 1: Channel Link Settings -->
+        <div class="mb-5 p-4 rounded-2xl bg-black/40 border border-cyan/15">
+          <label class="block text-cyan text-xs font-black mb-2 flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+            رابط قناة التليجرام:
+          </label>
+          <div class="flex flex-col gap-2">
+            <input
+              id="teleLinkInput"
+              type="text"
+              placeholder="https://t.me/..."
+              class="w-full px-3 py-2.5 rounded-xl border border-cyan/30 bg-black/60 text-cyan text-xs outline-none focus:border-cyan font-mono"
+            />
+            <button
+              onclick="updateTelegramLink()"
+              class="w-full py-2 bg-cyan/10 hover:bg-cyan hover:text-black text-cyan border border-cyan/30 font-black text-xs rounded-xl transition-all cursor-pointer shadow-sm active:scale-98"
+            >
+              حفظ وتحديث الرابط 🔗
+            </button>
+          </div>
+        </div>
+
+        <!-- TAB 2: Generate New Access Code -->
+        <div class="mb-5 p-4 rounded-2xl bg-black/40 border border-cyan/15">
+          <label class="block text-cyan text-xs font-black mb-2 flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
+            توليد كود تفعيل جديد:
+          </label>
+          <div class="flex flex-col gap-3">
+            <div class="flex gap-2">
+              <input
+                id="newCodeInput"
+                type="text"
+                placeholder="أدخل كود التفعيل"
+                class="flex-1 px-3 py-2 rounded-xl border border-cyan/30 bg-black/60 text-cyan placeholder-cyan/30 text-xs outline-none focus:border-cyan font-bold text-center"
+              />
+              <button
+                onclick="generateRandomCode()"
+                class="px-2.5 py-2 bg-cyan/15 border border-cyan/30 text-cyan rounded-xl hover:bg-cyan hover:text-black transition-all text-xs font-black"
+                title="توليد كود عشوائي"
+              >
+                عشوائي 🎲
+              </button>
+            </div>
+            
+            <div class="flex items-center gap-2">
+              <span class="text-white/60 text-xs shrink-0 font-bold">المدة الزمنية:</span>
+              <select
+                id="newCodeDuration"
+                class="flex-1 px-2.5 py-2 rounded-xl border border-cyan/30 bg-black text-cyan text-xs outline-none focus:border-cyan font-bold cursor-pointer"
+              >
+                <option value="unlimited">دائم / مدى الحياة</option>
+                <option value="1h">ساعة واحدة</option>
+                <option value="12h">12 ساعة</option>
+                <option value="1d">يوم واحد</option>
+                <option value="7d">7 أيام</option>
+                <option value="30d">30 يوم</option>
+              </select>
+            </div>
+
+            <button
+              onclick="addActivationCode()"
+              class="w-full py-2.5 bg-cyan text-black font-black text-xs rounded-xl hover:bg-white transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-[0_0_12px_rgba(0,247,255,0.2)] active:scale-98"
+            >
+              <span>توليد وحفظ الكود 🔑</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- TAB 3: Active Codes List -->
+        <div class="mb-2">
+          <div class="flex justify-between items-center mb-2">
+            <label class="text-cyan/80 text-xs font-black flex items-center gap-1">
+              <svg class="w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+              الأكواد النشطة حالياً:
+            </label>
+            <span id="codesCountBadge" class="bg-cyan/10 text-cyan text-[10px] font-black px-2 py-0.5 rounded-full border border-cyan/30">
+              0
+            </span>
+          </div>
+
+          <div id="codesContainer" class="max-h-[220px] overflow-y-auto border border-cyan/20 rounded-xl bg-black/50 p-2 flex flex-col gap-2">
+            <div class="text-center py-8 text-white/40 text-xs font-bold">
+              جاري تحميل الأكواد... ⏳
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- CORE VANILLA JAVASCRIPT STATE ENGINE -->
+    <script>
+      // Configuration fallback
+      const CONFIG = {
+        apiKey: "%VITE_FIREBASE_API_KEY%",
+        databaseURL: "%VITE_FIREBASE_DATABASE_URL%",
+        projectId: "%VITE_FIREBASE_PROJECT_ID%"
+      };
+
+      let database = null;
+      let isFirebaseOnline = false;
+      let activeCodes = [];
+      let telegramLink = "https://t.me/P9_B_ET";
+
+      // 1. Initialize Firebase with detection & fallback
+      function initFirebase() {
+        // Safe check if standard placeholders are replaced by build env
+        const hasValidEnv = CONFIG.apiKey && 
+                            CONFIG.apiKey !== "" && 
+                            !CONFIG.apiKey.startsWith("%") &&
+                            CONFIG.databaseURL && 
+                            !CONFIG.databaseURL.startsWith("%");
+
+        if (hasValidEnv) {
+          try {
+            const app = firebase.initializeApp(CONFIG);
+            database = firebase.database();
+            isFirebaseOnline = true;
+            console.log("Firebase RTDB connected successfully on admin page.");
+          } catch (e) {
+            console.error("Firebase config failed, falling back to LocalStorage:", e);
+          }
+        } else {
+          console.warn("No environment credentials found. Admin page running on LocalStorage synced with user application.");
+        }
+      }
+
+      // 2. Authentication flow
+      function attemptLogin() {
+        const password = document.getElementById("passwordInput").value;
+        if (password === "admin123" || password === "XR88") {
+          document.getElementById("authError").classList.add("hidden");
+          document.getElementById("authCard").classList.add("hidden");
+          document.getElementById("panelCard").classList.remove("hidden");
+          
+          // Load existing config & start list ticker
+          loadConfig();
+          startCodeTimerTicker();
+        } else {
+          document.getElementById("authError").classList.remove("hidden");
+        }
+      }
+
+      function logout() {
+        document.getElementById("passwordInput").value = "";
+        document.getElementById("authCard").classList.remove("hidden");
+        document.getElementById("panelCard").classList.add("hidden");
+      }
+
+      // 3. Load codes and link from Firebase or LocalStorage
+      async function loadConfig() {
+        // Load Link
+        if (isFirebaseOnline) {
+          try {
+            const linkRef = database.ref("m11_tele_link");
+            const snap = await linkRef.get();
+            if (snap.exists() && snap.val()) {
+              telegramLink = snap.val();
+              localStorage.setItem("m11_tele_link", telegramLink);
+            }
+          } catch (e) {
+            console.error("Failed to read telegram link:", e);
+          }
+        }
+        
+        const localLink = localStorage.getItem("m11_tele_link");
+        if (localLink) telegramLink = localLink;
+        document.getElementById("teleLinkInput").value = telegramLink;
+
+        // Load Codes
+        if (isFirebaseOnline) {
+          try {
+            const codesRef = database.ref("m11_codes");
+            const snap = await codesRef.get();
+            if (snap.exists()) {
+              const val = snap.val();
+              if (Array.isArray(val)) {
+                activeCodes = val.map(item => {
+                  if (typeof item === 'string') return { code: item, expiresAt: null };
+                  return {
+                    code: item.code || String(item),
+                    expiresAt: typeof item.expiresAt === 'number' ? item.expiresAt : null
+                  };
+                });
+                localStorage.setItem("m11_codes_v2", JSON.stringify(activeCodes));
+              }
+            }
+          } catch (e) {
+            console.error("Failed to fetch codes:", e);
+          }
+        } else {
+          const localCodes = localStorage.getItem("m11_codes_v2") || localStorage.getItem("m11_codes");
+          if (localCodes) {
+            try {
+              const parsed = JSON.parse(localCodes);
+              if (Array.isArray(parsed)) {
+                activeCodes = parsed.map(item => {
+                  if (typeof item === 'string') return { code: item, expiresAt: null };
+                  return { code: item.code, expiresAt: item.expiresAt };
+                });
+              }
+            } catch (e) {
+              activeCodes = [];
+            }
+          }
+        }
+
+        renderCodes();
+      }
+
+      // 4. Save dynamic settings
+      async function saveConfig() {
+        localStorage.setItem("m11_codes_v2", JSON.stringify(activeCodes));
+        if (isFirebaseOnline) {
+          try {
+            await database.ref("m11_codes").set(activeCodes);
+          } catch (e) {
+            console.error("Failed to sync codes with Firebase:", e);
+          }
+        }
+      }
+
+      async function updateTelegramLink() {
+        const val = document.getElementById("teleLinkInput").value.trim();
+        if (!val) return;
+
+        telegramLink = val;
+        localStorage.setItem("m11_tele_link", val);
+        
+        if (isFirebaseOnline) {
+          try {
+            await database.ref("m11_tele_link").set(val);
+          } catch (e) {
+            console.error("Failed to sync link with Firebase:", e);
+          }
+        }
+        alert("تم تحديث رابط التليجرام بنجاح! 🎉");
+      }
+
+      // 5. Code modifications
+      async function addActivationCode() {
+        const input = document.getElementById("newCodeInput").value.trim();
+        const duration = document.getElementById("newCodeDuration").value;
+
+        if (!input) {
+          alert("الرجاء إدخال كود تفعيل أولاً!");
+          return;
+        }
+
+        if (activeCodes.some(c => c.code.toLowerCase() === input.toLowerCase())) {
+          alert("هذا الكود مضاف بالفعل!");
+          return;
+        }
+
+        let expiresAt = null;
+        const now = Date.now();
+        if (duration === "1h") expiresAt = now + 60 * 60 * 1000;
+        else if (duration === "12h") expiresAt = now + 12 * 60 * 60 * 1000;
+        else if (duration === "1d") expiresAt = now + 24 * 60 * 60 * 1000;
+        else if (duration === "7d") expiresAt = now + 7 * 24 * 60 * 60 * 1000;
+        else if (duration === "30d") expiresAt = now + 30 * 24 * 60 * 60 * 1000;
+
+        const newObj = {
+          code: input,
+          expiresAt: expiresAt
+        };
+
+        activeCodes.push(newObj);
+        await saveConfig();
+        
+        document.getElementById("newCodeInput").value = "";
+        renderCodes();
+        alert("تم حفظ الكود الجديد بنجاح! 🔑");
+      }
+
+      function generateRandomCode() {
+        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        let code = "";
+        for (let i = 0; i < 6; i++) {
+          code += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        document.getElementById("newCodeInput").value = code;
+      }
+
+      async function deleteCode(codeStr) {
+        if (confirm(`هل أنت متأكد من حذف كود التفعيل: ${codeStr}؟`)) {
+          activeCodes = activeCodes.filter(c => c.code !== codeStr);
+          await saveConfig();
+          renderCodes();
+        }
+      }
+
+      // Helper to generate remaining countdown text
+      function getRemainingTimeText(expiresAt) {
+        if (expiresAt === null) return "دائم (Lifetime)";
+        const diff = expiresAt - Date.now();
+        if (diff <= 0) return "منتهي الصلاحية (Expired)";
+
+        const totalSeconds = Math.floor(diff / 1000);
+        const totalMinutes = Math.floor(totalSeconds / 60);
+        const totalHours = Math.floor(totalMinutes / 60);
+        const totalDays = Math.floor(totalHours / 24);
+
+        if (totalDays > 0) {
+          return `متبقي: ${totalDays} يوم و ${totalHours % 24} ساعة`;
+        }
+        if (totalHours > 0) {
+          return `متبقي: ${totalHours} ساعة و ${totalMinutes % 60} دقيقة`;
+        }
+        if (totalMinutes > 0) {
+          return `متبقي: ${totalMinutes} دقيقة`;
+        }
+        return `متبقي: ${totalSeconds} ثانية`;
+      }
+
+      // 6. Realtime rendering updates
+      function renderCodes() {
+        const container = document.getElementById("codesContainer");
+        const badge = document.getElementById("codesCountBadge");
+        
+        badge.innerText = activeCodes.length;
+
+        if (activeCodes.length === 0) {
+          container.innerHTML = `
+            <div class="text-center py-8 text-white/40 text-xs font-bold">
+              لا يوجد أي أكواد تفعيل نشطة! 🔍
+            </div>
+          `;
+          return;
+        }
+
+        let html = "";
+        activeCodes.forEach(item => {
+          const isExpired = item.expiresAt !== null && item.expiresAt <= Date.now();
+          const timeText = getRemainingTimeText(item.expiresAt);
+
+          html += `
+            <div class="flex justify-between items-center bg-white/[0.02] px-3.5 py-2.5 rounded-xl border ${isExpired ? "border-red-500/30 bg-red-950/10" : "border-white/5"}">
+              <div class="flex flex-col text-right">
+                <span class="font-mono text-xs font-black tracking-wider ${isExpired ? "text-red-400 line-through" : "text-white"}">
+                  ${item.code}
+                </span>
+                <span class="text-[10px] flex items-center gap-1 mt-0.5 ${isExpired ? "text-red-500 font-bold" : "text-cyan/70"}">
+                  <svg class="w-3 h-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  ${timeText}
+                </span>
+              </div>
+              <button
+                onclick="deleteCode('${item.code}')"
+                class="p-2 bg-red-500/15 text-red-400 hover:bg-red-500 hover:text-white rounded-lg transition-all cursor-pointer border border-red-500/10 active:scale-95"
+                title="حذف الكود"
+              >
+                <svg class="w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+            </div>
+          `;
+        });
+
+        container.innerHTML = html;
+      }
+
+      function startCodeTimerTicker() {
+        setInterval(() => {
+          if (document.getElementById("panelCard").classList.contains("hidden")) return;
+          renderCodes();
+        }, 5000);
+      }
+
+      // Initialize on load
+      initFirebase();
+    </script>
+  </body>
+</html>
